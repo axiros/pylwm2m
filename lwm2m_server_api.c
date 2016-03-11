@@ -14,6 +14,26 @@
 
 
 
+/* Parses the uri from python into lwm2m_uri_t
+ * returns -1 on error
+ * return 0 on succes.
+ */
+
+static int
+pylwm2m_parse_uri_str(const char* uriStr, lwm2m_uri_t* uri) {
+    if (!uriStr) {
+        PyErr_SetString(PyExc_ValueError, "URI is empty");
+        return -1;
+    }
+
+    if (!lwm2m_stringToUri(uriStr, strlen(uriStr), uri)) {
+        PyErr_Format(PyExc_ValueError, "Not a valid URI: %s", uriStr);
+        return -1;
+    }
+
+    return 0;
+}
+
 /*
  * server callbacks
  */ 
@@ -134,10 +154,14 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
 	PyObject *resultData = NULL;
 	pylwm2m_result_t * lwm2mresultP = NULL;
 	int result = -1;
-	if (!PyArg_ParseTuple(args, "OHsOO", &pylwm2mHCap, &clientID, &uriStr, &resultCb, &resultData)
-		|| !uriStr || !lwm2m_stringToUri(uriStr, strlen(uriStr), &uri)) {
-		return NULL;
-	}
+	if (!PyArg_ParseTuple(args, "OHsOO", &pylwm2mHCap, &clientID, &uriStr, &resultCb, &resultData)) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
 	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
 	lwm2mresultP->resultCb = resultCb;
@@ -164,10 +188,14 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
 	PyObject *resultData = NULL;
 	pylwm2m_result_t * lwm2mresultP = NULL;
 	int result = -1;
-	if (!PyArg_ParseTuple(args, "OHsis#iOO", &pylwm2mHCap, &clientID, &uriStr, &format, &buffer, &length, &length, &resultCb, &resultData)
-		|| !uriStr || !lwm2m_stringToUri(uriStr, strlen(uriStr), &uri)) {
-		return NULL;
-	}
+	if (!PyArg_ParseTuple(args, "OHsis#iOO", &pylwm2mHCap, &clientID, &uriStr, &format, &buffer, &length, &length, &resultCb, &resultData)) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
 	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
 	lwm2mresultP->resultCb = resultCb;
@@ -194,10 +222,14 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
 	PyObject *resultData = NULL;
 	pylwm2m_result_t * lwm2mresultP = NULL;
 	int result = -1;
-	if (!PyArg_ParseTuple(args, "OHsis#iOO", &pylwm2mHCap, &clientID, &uriStr, &format, &buffer, &length, &length, &resultCb, &resultData)
-		|| !uriStr || !lwm2m_stringToUri(uriStr, strlen(uriStr), &uri)) {
-		return NULL;
-	}
+	if (!PyArg_ParseTuple(args, "OHsis#iOO", &pylwm2mHCap, &clientID, &uriStr, &format, &buffer, &length, &length, &resultCb, &resultData)) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
 	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
 	lwm2mresultP->resultCb = resultCb;
@@ -224,10 +256,14 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
 	PyObject *resultData = NULL;
 	pylwm2m_result_t * lwm2mresultP = NULL;
 	int result = -1;
-	if (!PyArg_ParseTuple(args, "OHsis#iOO", &pylwm2mHCap, &clientID, &uriStr, &format, &buffer, &length, &length, &resultCb, &resultData)
-		|| !uriStr || !lwm2m_stringToUri(uriStr, strlen(uriStr), &uri)) {
-		return NULL;
-	}
+	if (!PyArg_ParseTuple(args, "OHsis#iOO", &pylwm2mHCap, &clientID, &uriStr, &format, &buffer, &length, &length, &resultCb, &resultData)) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
 	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
 	lwm2mresultP->resultCb = resultCb;
@@ -251,10 +287,14 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
 	PyObject *resultData = NULL;
 	pylwm2m_result_t * lwm2mresultP = NULL;
 	int result = -1;
-	if (!PyArg_ParseTuple(args, "OHsOO", &pylwm2mHCap, &clientID, &uriStr, &resultCb, &resultData)
-		|| !uriStr || !lwm2m_stringToUri(uriStr, strlen(uriStr), &uri)) {
-		return NULL;
-	}
+	if (!PyArg_ParseTuple(args, "OHsOO", &pylwm2mHCap, &clientID, &uriStr, &resultCb, &resultData)) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
 	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
 	lwm2mresultP->resultCb = resultCb;
