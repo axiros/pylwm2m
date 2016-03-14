@@ -33,29 +33,12 @@ typedef struct _pylwm2m_result_ {
 	PyObject		* resultData;
 } pylwm2m_result_t;
 
-typedef struct _pylwm2m_object_ pylwm2m_object_t;
 
 typedef struct _pylwm2m_context_ {
-	lwm2m_context_t	* lwm2mH;
-	PyObject		* connectCb;
-	PyObject		* bufferSendCb;
-	PyObject		* userData;
+	lwm2m_context_t* lwm2mH;
+	PyObject* userData;
 	pylwm2m_result_t	monitoringResult;
-	int				objectCount;
-	pylwm2m_object_t ** pylwm2mObjHTable;
 } pylwm2m_context_t;
-
-struct _pylwm2m_object_ {
-	pylwm2m_context_t * pylwm2mH;
-	lwm2m_object_t	* lwm2mObjH;
-	PyObject		* readCb;
-	PyObject		* writeCb;
-	PyObject		* executeCb;
-	PyObject		* createCb;
-	PyObject		* deleteCb;
-	PyObject		* userData;
-};
-
 
 
 /*
@@ -63,13 +46,6 @@ struct _pylwm2m_object_ {
  */ 
 
 int prv_lwm2m_uri_dump(lwm2m_uri_t * uriP, char * uriBuf);
-
-
-/*
- * comms callbacks
- */ 
-
-uint8_t buffer_send_cb(void * sessionH, uint8_t * buffer, size_t length, void * userData);
 
 
 /*
