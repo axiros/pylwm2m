@@ -527,14 +527,88 @@ pylwm2m_dm_write_attributes(PyObject* self, PyObject* args) {
     return Py_BuildValue("i", result);
 }
 
-PyObject * pylwm2m_observe(PyObject *self, PyObject *args) {
-TRACE("%s %p %p\n",__FUNCTION__, self, args);
-	int result = -1;
-	return Py_BuildValue("i", result);
+PyObject * pylwm2m_observe(PyObject *self, PyObject *args)
+{
+    int result = 0;
+    pylwm2m_context_t* context = NULL;
+    lwm2m_uri_t uri;
+    pylwm2m_result_t* result_ptr = NULL;
+
+    PyObject* py_context;
+    uint16_t client_id = 0;
+    const char* uri_str = NULL;
+    PyObject* result_cb = NULL;
+    PyObject* result_cb_data = NULL;
+
+    if (!PyArg_ParseTuple(args, "OHsOO", &py_context, &client_id, &uri_str, &result_cb, &result_cb_data)) {
+        return NULL;
+    }
+
+    if ((context = PyCapsule_GetPointer(py_context, NULL)) == NULL) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uri_str, &uri) == -1) {
+        return NULL;
+    }
+
+    if ((result_ptr = new_result_ptr(result_cb, result_cb_data)) == NULL) {
+        return NULL;
+    }
+
+    result = lwm2m_observe(
+        context->lwm2mH,
+        client_id,
+        &uri,
+        result_cb_wrapper,
+        result_ptr);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(result_ptr);
+    }
+
+    return Py_BuildValue("i", result);
 }
 
-PyObject * pylwm2m_observe_cancel(PyObject *self, PyObject *args) {
-TRACE("%s %p %p\n",__FUNCTION__, self, args);
-	int result = -1;
-	return Py_BuildValue("i", result);
+PyObject* pylwm2m_observe_cancel(PyObject *self, PyObject *args)
+{
+    int result = 0;
+    pylwm2m_context_t* context = NULL;
+    lwm2m_uri_t uri;
+    pylwm2m_result_t* result_ptr = NULL;
+
+    PyObject* py_context;
+    uint16_t client_id = 0;
+    const char* uri_str = NULL;
+    PyObject* result_cb = NULL;
+    PyObject* result_cb_data = NULL;
+
+    if (!PyArg_ParseTuple(args, "OHsOO", &py_context, &client_id, &uri_str, &result_cb, &result_cb_data)) {
+        return NULL;
+    }
+
+    if ((context = PyCapsule_GetPointer(py_context, NULL)) == NULL) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uri_str, &uri) == -1) {
+        return NULL;
+    }
+
+    if ((result_ptr = new_result_ptr(result_cb, result_cb_data)) == NULL) {
+        return NULL;
+    }
+
+    result = lwm2m_observe_cancel(
+        context->lwm2mH,
+        client_id,
+        &uri,
+        result_cb_wrapper,
+        result_ptr);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(result_ptr);
+    }
+
+    return Py_BuildValue("i", result);
 }
