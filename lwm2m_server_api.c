@@ -376,6 +376,8 @@ construct_attributes_from_dict(lwm2m_attributes_t* attributes, PyObject* py_attr
     }
 
 
+    memset(attributes, 0, sizeof(lwm2m_attributes_t));
+
     PyObject* val = NULL;
 
     /* Go over the fields and set/clear if they are present.
@@ -435,7 +437,7 @@ construct_attributes_from_dict(lwm2m_attributes_t* attributes, PyObject* py_attr
                 return -1;
             }
 
-            attributes->toSet = LWM2M_ATTR_FLAG_GREATER_THAN;
+            attributes->toSet |= LWM2M_ATTR_FLAG_GREATER_THAN;
             attributes->greaterThan = greater_than;
         }
     }
@@ -490,7 +492,11 @@ pylwm2m_dm_write_attributes(PyObject* self, PyObject* args) {
     PyObject* result_cb = NULL;
     PyObject* result_cb_data = NULL;
 
-    if (!PyArg_ParseTuple(args, "OHsOO", &py_context, &client_id, &uri_str, &attributes, &result_cb, &result_cb_data)) {
+    if (!PyArg_ParseTuple(args, "OHsOOO", &py_context, &client_id, &uri_str, &py_attributes, &result_cb, &result_cb_data)) {
+        return NULL;
+    }
+
+    if ((context = PyCapsule_GetPointer(py_context, NULL)) == NULL) {
         return NULL;
     }
 
@@ -507,7 +513,7 @@ pylwm2m_dm_write_attributes(PyObject* self, PyObject* args) {
     }
 
     result = lwm2m_dm_write_attributes(
-        PyCapsule_GetPointer(py_context, NULL),
+        context->lwm2mH,
         client_id,
         &uri,
         &attributes,
