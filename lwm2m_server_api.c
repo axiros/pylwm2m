@@ -79,6 +79,10 @@ result_ptr_needs_free(int result) {
  * server callbacks
  */
 
+/* Note:
+ * Keep in mind that this function is also referenced in pylwm2m_observe.
+ * pylwm2m_observe relies on 'result_cb' *NOT* free pylwm2m_result_t
+ */
 void result_cb(uint16_t clientID, lwm2m_uri_t * uriP, int status, lwm2m_media_type_t format, uint8_t * data, int dataLength, void * userData) {
 TRACE("%s %hu %p %d %d %p %d %p\n",__FUNCTION__, clientID, uriP, status, format, data, dataLength, userData);	
 	pylwm2m_result_t * lwm2mresultP = (pylwm2m_result_t *) userData;
@@ -104,7 +108,6 @@ TRACE("%s %hu %p %d %d %p %d %p\n",__FUNCTION__, clientID, uriP, status, format,
 	result_cb(clientID, uriP, status, format, data, dataLength, userData);
     destroy_result_ptr(lwm2mresultP);
 }
-
 
 /*
  * lwm2m server API wrapper
@@ -556,11 +559,19 @@ PyObject * pylwm2m_observe(PyObject *self, PyObject *args)
         return NULL;
     }
 
+    /* The thing is this:
+     *  'result_cb' will be called:
+     *  1) When the response of the 'observe' comes back. For example 2.05/4.04/....
+     *  2) When a notification comes in.
+     * => pylwm2m_result_t must be kept until the observation is canceled.
+     * Right now I don't know how to free it correctly => Memory Leak !!!!!!
+     */
+
     result = lwm2m_observe(
         context->lwm2mH,
         client_id,
         &uri,
-        result_cb_wrapper,
+        result_cb,
         result_ptr);
 
     if (result_ptr_needs_free(result)) {
