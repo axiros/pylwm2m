@@ -240,6 +240,8 @@ static PyMethodDef lwm2mMethods[] = {
 		"lwm2m_dm_create(handle, clientID, uriStr, format, buffer, length, resultCallback, userData) -> error"},
     {"lwm2m_dm_delete", pylwm2m_dm_delete, METH_VARARGS, 
 		"lwm2m_dm_delete(handle, clientID, uriStr, resultCallback, userData) -> error"},
+    {"lwm2m_dm_write_attributes", pylwm2m_dm_write_attributes, METH_VARARGS,
+        "pylwm2m_dm_write_attributes(handle, clientID, uriStr, attributes, resultCallback, userData) -> error"},
     {"lwm2m_observe", pylwm2m_observe, METH_VARARGS, 
 		NULL},
     {"lwm2m_observe_cancel", pylwm2m_observe_cancel, METH_VARARGS, 

@@ -88,6 +88,8 @@ PyObject * pylwm2m_dm_create(PyObject *self, PyObject *args);
 
 PyObject * pylwm2m_dm_delete(PyObject *self, PyObject *args);
 
+PyObject * pylwm2m_dm_write_attributes(PyObject* self, PyObject* args);
+
 PyObject * pylwm2m_observe(PyObject *self, PyObject *args);
 
 PyObject * pylwm2m_observe_cancel(PyObject *self, PyObject *args);

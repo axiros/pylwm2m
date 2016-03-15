@@ -34,9 +34,26 @@ pylwm2m_parse_uri_str(const char* uriStr, lwm2m_uri_t* uri) {
     return 0;
 }
 
+static pylwm2m_result_t*
+new_result_ptr(PyObject* cb, PyObject* cb_data)
+{
+    pylwm2m_result_t* result_ptr = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
+    if (result_ptr == NULL) {
+        return NULL;
+    }
+
+    result_ptr->resultCb = cb;
+    result_ptr->resultData = cb_data;
+
+    Py_XINCREF(cb);
+    Py_XINCREF(cb_data);
+
+    return result_ptr;
+}
+
 /*
  * server callbacks
- */ 
+ */
 
 void result_cb(uint16_t clientID, lwm2m_uri_t * uriP, int status, lwm2m_media_type_t format, uint8_t * data, int dataLength, void * userData) {
 TRACE("%s %hu %p %d %d %p %d %p\n",__FUNCTION__, clientID, uriP, status, format, data, dataLength, userData);	
@@ -305,6 +322,151 @@ TRACE("lwm2m_dm_delete %p %hu %p %p %p\n",pylwm2mH->lwm2mH, clientID, &uri, resu
 	result = lwm2m_dm_delete(pylwm2mH->lwm2mH, clientID, &uri, result_cb_wrapper, lwm2mresultP);
 TRACE("lwm2m_dm_delete result: %d\n", result);
 	return Py_BuildValue("i", result);
+}
+
+static int
+construct_attributes_from_dict(lwm2m_attributes_t* attributes, PyObject* py_attributes)
+{
+    if (!PyDict_Check(py_attributes)) {
+        PyErr_Format(PyExc_ValueError, "attributes must be a dictionary");
+        return -1;
+    }
+
+
+    PyObject* val = NULL;
+
+    /* Go over the fields and set/clear if they are present.
+     * To clear a field use None.
+     */
+
+    val = PyDict_GetItemString(py_attributes, "min_period");
+    if (val != NULL) {
+        if (val == Py_None) {
+            attributes->toClear |= LWM2M_ATTR_FLAG_MIN_PERIOD;
+        }
+        else {
+            unsigned long min_period = PyLong_AsUnsignedLong(val);
+            if (PyErr_Occurred()) {
+                return -1;
+            }
+
+            if (min_period > UINT32_MAX) {
+                PyErr_Format(PyExc_ValueError, "min_period too big");
+                return -1;
+            }
+
+            attributes->toSet |= LWM2M_ATTR_FLAG_MIN_PERIOD;
+            attributes->minPeriod = (uint32_t) min_period;
+        }
+    }
+
+    val = PyDict_GetItemString(py_attributes, "max_period");
+    if (val != NULL) {
+        if (val == Py_None) {
+            attributes->toClear |= LWM2M_ATTR_FLAG_MAX_PERIOD;
+        }
+        else {
+            unsigned long max_period = PyLong_AsUnsignedLong(val);
+            if (PyErr_Occurred()) {
+                return -1;
+            }
+
+            if (max_period > UINT32_MAX) {
+                PyErr_Format(PyExc_ValueError, "max_period too big");
+                return -1;
+            }
+
+            attributes->toSet |= LWM2M_ATTR_FLAG_MAX_PERIOD;
+            attributes->maxPeriod = (uint32_t) max_period;
+        }
+    }
+
+    val = PyDict_GetItemString(py_attributes, "greater_than");
+    if (val != NULL) {
+        if (val == Py_None) {
+            attributes->toClear |= LWM2M_ATTR_FLAG_GREATER_THAN;
+        }
+        else {
+            double greater_than = PyFloat_AsDouble(val);
+            if (PyErr_Occurred()) {
+                return -1;
+            }
+
+            attributes->toSet = LWM2M_ATTR_FLAG_GREATER_THAN;
+            attributes->greaterThan = greater_than;
+        }
+    }
+
+    val = PyDict_GetItemString(py_attributes, "less_than");
+    if (val != NULL) {
+        if (val == Py_None) {
+            attributes->toClear |= LWM2M_ATTR_FLAG_LESS_THAN;
+        }
+        else {
+            double less_than = PyFloat_AsDouble(val);
+            if (PyErr_Occurred()) {
+                return -1;
+            }
+
+            attributes->toSet |= LWM2M_ATTR_FLAG_LESS_THAN;
+            attributes->lessThan = less_than;
+        }
+    }
+
+    val = PyDict_GetItemString(py_attributes, "step");
+    if (val != NULL) {
+        if (val == Py_None) {
+            attributes->toClear |= LWM2M_ATTR_FLAG_STEP;
+        }
+        else {
+            double step = PyFloat_AsDouble(val);
+            if (PyErr_Occurred()) {
+                return -1;
+            }
+
+            attributes->toSet |= LWM2M_ATTR_FLAG_STEP;
+            attributes->step = step;
+        }
+    }
+
+    return 0;
+}
+
+PyObject*
+pylwm2m_dm_write_attributes(PyObject* self, PyObject* args) {
+    int result = 0;
+    pylwm2m_context_t* context = NULL;
+    lwm2m_uri_t uri;
+    lwm2m_attributes_t attributes;
+
+    PyObject* py_context;
+    uint16_t client_id = 0;
+    const char* uri_str = NULL;
+    PyObject* py_attributes = NULL;
+    PyObject* result_cb = NULL;
+    PyObject* result_cb_data = NULL;
+
+    if (!PyArg_ParseTuple(args, "OHsOO", &py_context, &client_id, &uri_str, &attributes, &result_cb, &result_cb_data)) {
+        return NULL;
+    }
+
+    if (construct_attributes_from_dict(&attributes, py_attributes) == -1) {
+        return NULL;
+    }
+
+    if (pylwm2m_parse_uri_str(uri_str, &uri) == -1) {
+        return NULL;
+    }
+
+    result = lwm2m_dm_write_attributes(
+        PyCapsule_GetPointer(py_context, NULL),
+        client_id,
+        &uri,
+        &attributes,
+        result_cb_wrapper,
+        new_result_ptr(result_cb, result_cb_data));
+
+    return Py_BuildValue("i", result);
 }
 
 PyObject * pylwm2m_observe(PyObject *self, PyObject *args) {
