@@ -6,9 +6,9 @@
  * Luc Yriarte <luc.yriarte@thingagora.org>
  */
 
+#include <Python.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <Python.h>
 
 #include "pylwm2m.h"
 
