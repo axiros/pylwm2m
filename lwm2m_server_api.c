@@ -39,6 +39,7 @@ new_result_ptr(PyObject* cb, PyObject* cb_data)
 {
     pylwm2m_result_t* result_ptr = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
     if (result_ptr == NULL) {
+        PyErr_NoMemory();
         return NULL;
     }
 
@@ -49,6 +50,29 @@ new_result_ptr(PyObject* cb, PyObject* cb_data)
     Py_XINCREF(cb_data);
 
     return result_ptr;
+}
+
+static void
+destroy_result_ptr(pylwm2m_result_t* result_ptr)
+{
+    if (result_ptr == NULL) {
+        return;
+    }
+
+    Py_XDECREF(result_ptr->resultCb);
+    Py_XDECREF(result_ptr->resultData);
+    free(result_ptr);
+}
+
+static int
+result_ptr_needs_free(int result) {
+    /* If result == 0 => everying is ok => callback will be called.
+     * If result == -1 => Callback has already been called.
+     * Everyting else is 'COAP_ERROR_......' in which case the wakaama library
+     * destroyed the transaction and will never fire the callback.
+     * => free result_ptr in this case.
+     */
+    return !((result == 0) || (result == -1));
 }
 
 /*
@@ -78,11 +102,7 @@ void result_cb_wrapper(uint16_t clientID, lwm2m_uri_t * uriP, int status, lwm2m_
 TRACE("%s %hu %p %d %d %p %d %p\n",__FUNCTION__, clientID, uriP, status, format, data, dataLength, userData);	
 	pylwm2m_result_t * lwm2mresultP = (pylwm2m_result_t *) userData;
 	result_cb(clientID, uriP, status, format, data, dataLength, userData);
-	if (lwm2mresultP) {
-		Py_XDECREF(lwm2mresultP->resultCb);
-		Py_XDECREF(lwm2mresultP->resultData);
-		free(lwm2mresultP);
-	}
+    destroy_result_ptr(lwm2mresultP);
 }
 
 
@@ -179,15 +199,20 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
         return NULL;
     }
 
+    if ((lwm2mresultP = new_result_ptr(resultCb, resultData)) == NULL) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
-	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
-	lwm2mresultP->resultCb = resultCb;
-	lwm2mresultP->resultData = resultData;
-	Py_XINCREF(lwm2mresultP->resultCb);
-	Py_XINCREF(lwm2mresultP->resultData);
+
 TRACE("lwm2m_dm_read %p %hu %p %p %p\n",pylwm2mH->lwm2mH, clientID, &uri, result_cb_wrapper, lwm2mresultP);
 	result = lwm2m_dm_read(pylwm2mH->lwm2mH, clientID, &uri, result_cb_wrapper, lwm2mresultP);
 TRACE("lwm2m_dm_read result: %d\n", result);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(lwm2mresultP);
+    }
+
 	return Py_BuildValue("i", result);
 }
 
@@ -213,15 +238,20 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
         return NULL;
     }
 
+    if ((lwm2mresultP = new_result_ptr(resultCb, resultData)) == NULL) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
-	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
-	lwm2mresultP->resultCb = resultCb;
-	lwm2mresultP->resultData = resultData;
-	Py_XINCREF(lwm2mresultP->resultCb);
-	Py_XINCREF(lwm2mresultP->resultData);
+
 TRACE("lwm2m_dm_write %p %hu %p %d %p %d %p %p\n",pylwm2mH->lwm2mH, clientID, &uri, format, buffer, length, result_cb_wrapper, lwm2mresultP);
 	result = lwm2m_dm_write(pylwm2mH->lwm2mH, clientID, &uri, format, buffer, length, result_cb_wrapper, lwm2mresultP);
 TRACE("lwm2m_dm_write result: %d\n", result);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(lwm2mresultP);
+    }
+
 	return Py_BuildValue("i", result);
 }
 
@@ -246,16 +276,20 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
     if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
         return NULL;
     }
+    if ((lwm2mresultP = new_result_ptr(resultCb, resultData)) == NULL) {
+        return NULL;
+    }
 
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
-	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
-	lwm2mresultP->resultCb = resultCb;
-	lwm2mresultP->resultData = resultData;
-	Py_XINCREF(lwm2mresultP->resultCb);
-	Py_XINCREF(lwm2mresultP->resultData);
+
 TRACE("lwm2m_dm_execute %p %hu %p %d %p %d %p %p\n",pylwm2mH->lwm2mH, clientID, &uri, format, buffer, length, result_cb_wrapper, lwm2mresultP);
 	result = lwm2m_dm_execute(pylwm2mH->lwm2mH, clientID, &uri, format, buffer, length, result_cb_wrapper, lwm2mresultP);
 TRACE("lwm2m_dm_execute result: %d\n", result);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(lwm2mresultP);
+    }
+
 	return Py_BuildValue("i", result);
 }
 
@@ -280,16 +314,20 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
     if (pylwm2m_parse_uri_str(uriStr, &uri) == -1) {
         return NULL;
     }
+    if ((lwm2mresultP = new_result_ptr(resultCb, resultData)) == NULL) {
+        return NULL;
+    }
 
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
-	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
-	lwm2mresultP->resultCb = resultCb;
-	lwm2mresultP->resultData = resultData;
-	Py_XINCREF(lwm2mresultP->resultCb);
-	Py_XINCREF(lwm2mresultP->resultData);
+
 TRACE("lwm2m_dm_create %p %hu %p %d %p %d %p %p\n",pylwm2mH->lwm2mH, clientID, &uri, format, buffer, length, result_cb_wrapper, lwm2mresultP);
 	result = lwm2m_dm_create(pylwm2mH->lwm2mH, clientID, &uri, format, buffer, length, result_cb_wrapper, lwm2mresultP);
 TRACE("lwm2m_dm_create result: %d\n", result);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(lwm2mresultP);
+    }
+
 	return Py_BuildValue("i", result);
 }
 
@@ -312,15 +350,20 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
         return NULL;
     }
 
+    if ((lwm2mresultP = new_result_ptr(resultCb, resultData)) == NULL) {
+        return NULL;
+    }
+
 	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
-	lwm2mresultP = (pylwm2m_result_t *) malloc(sizeof(struct _pylwm2m_result_));
-	lwm2mresultP->resultCb = resultCb;
-	lwm2mresultP->resultData = resultData;
-	Py_XINCREF(lwm2mresultP->resultCb);
-	Py_XINCREF(lwm2mresultP->resultData);
+
 TRACE("lwm2m_dm_delete %p %hu %p %p %p\n",pylwm2mH->lwm2mH, clientID, &uri, result_cb_wrapper, lwm2mresultP);
 	result = lwm2m_dm_delete(pylwm2mH->lwm2mH, clientID, &uri, result_cb_wrapper, lwm2mresultP);
 TRACE("lwm2m_dm_delete result: %d\n", result);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(lwm2mresultP);
+    }
+
 	return Py_BuildValue("i", result);
 }
 
@@ -438,6 +481,7 @@ pylwm2m_dm_write_attributes(PyObject* self, PyObject* args) {
     pylwm2m_context_t* context = NULL;
     lwm2m_uri_t uri;
     lwm2m_attributes_t attributes;
+    pylwm2m_result_t* result_ptr = NULL;
 
     PyObject* py_context;
     uint16_t client_id = 0;
@@ -458,13 +502,21 @@ pylwm2m_dm_write_attributes(PyObject* self, PyObject* args) {
         return NULL;
     }
 
+    if ((result_ptr = new_result_ptr(result_cb, result_cb_data)) == NULL) {
+        return NULL;
+    }
+
     result = lwm2m_dm_write_attributes(
         PyCapsule_GetPointer(py_context, NULL),
         client_id,
         &uri,
         &attributes,
         result_cb_wrapper,
-        new_result_ptr(result_cb, result_cb_data));
+        result_ptr);
+
+    if (result_ptr_needs_free(result)) {
+        destroy_result_ptr(result_ptr);
+    }
 
     return Py_BuildValue("i", result);
 }
