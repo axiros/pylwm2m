@@ -132,56 +132,122 @@ TRACE("lwm2m_set_monitoring_callback %p %p %p\n",pylwm2mH->lwm2mH, call_result_c
 	return Py_None;
 }
 
-PyObject * pylwm2m_get_client_info(PyObject *self, PyObject *args) {
-TRACE("%s %p %p\n",__FUNCTION__, self, args);
-	pylwm2m_context_t * pylwm2mH = NULL;
-	PyObject *pylwm2mHCap = NULL;
-	PyObject *pyresult = NULL;
-	uint16_t clientID = (uint16_t) -1;
-	lwm2m_client_t * clientP = NULL;
-	lwm2m_client_object_t * objectP = NULL;
-	lwm2m_list_t * instanceP = NULL;
-	lwm2m_uri_t uriS;
-	char * uriBuf;
-	int uriCount = 0;
-	if (!PyArg_ParseTuple(args, "OH", &pylwm2mHCap, &clientID)) {
-		return NULL;
-	}
-	pylwm2mH = PyCapsule_GetPointer(pylwm2mHCap, NULL);
-	clientP = (lwm2m_client_t *) lwm2m_list_find((lwm2m_list_t *)pylwm2mH->lwm2mH->clientList, clientID);
-	if (!clientP) {
-		return NULL;
-	}
-	for (objectP = clientP->objectList; objectP; objectP = objectP->next) {
-		++uriCount;
-		for (instanceP = objectP->instanceList; instanceP && instanceP->next; instanceP = instanceP->next)
-			++uriCount;
-	}
-TRACE("%s client: %p id: %hu uriCount: %d\n",__FUNCTION__, clientP, clientP->internalID, uriCount);
-	uriBuf = (char *) malloc(uriCount ? uriCount * URI_BUF_SIZE : 1);
-	uriCount = 0;
-	for (objectP = clientP->objectList; objectP; objectP = objectP->next) {
-		uriS.flag = LWM2M_URI_FLAG_OBJECT_ID;
-		uriS.objectId = objectP->id;
-		if (objectP->instanceList) {
-			uriS.flag |= LWM2M_URI_FLAG_INSTANCE_ID;
-			for (instanceP = objectP->instanceList; instanceP; instanceP = instanceP->next) {
-				uriS.instanceId = instanceP->id;
-				uriCount += prv_lwm2m_uri_dump(&uriS, uriBuf + uriCount);
-				uriBuf[uriCount++] = URI_SPLITTER;
-			}
-		}
-		else {
-			uriCount += prv_lwm2m_uri_dump(&uriS, uriBuf + uriCount);
-			uriBuf[uriCount++] = URI_SPLITTER;
-		}
-	}
-	uriBuf[uriCount ? uriCount-1 : 0] = '\0';
-TRACE("%s client: %p name: %s uris: %s\n",__FUNCTION__, clientP, clientP->name, uriBuf);
-	pyresult = Py_BuildValue("ss", clientP->name, uriBuf);
-	free(uriBuf);
-	return pyresult;
+/* A few defines to get hide the funny typecasts. */
+#define LWM2M_FIND_CLIENT(cl_list, client_id) (lwm2m_client_t*) lwm2m_list_find((lwm2m_list_t*) cl_list, client_id)
+
+static PyObject*
+pylwm2m_get_client_info_objects(lwm2m_client_t* client)
+{
+    PyObject* item = NULL;
+
+    lwm2m_client_object_t* object;
+    lwm2m_list_t* instance;
+
+    PyObject* result = PyList_New(0);
+    if (result == NULL) {
+        return NULL;
+    }
+
+    for (object = client->objectList; object; object = object->next) {
+        for (instance = object->instanceList; instance; instance = instance->next) {
+            if ((item = Py_BuildValue("(HH)", object->id, instance->id)) == NULL) {
+                Py_DECREF(result);
+                return NULL;
+            }
+
+            if (PyList_Append(result, item) == -1) {
+                Py_DECREF(result);
+                return NULL;
+            }
+
+            Py_DECREF(item);
+        }
+    }
+
+    return result;
 }
+
+PyObject*
+pylwm2m_get_client_info(PyObject* self, PyObject* args)
+{
+    pylwm2m_context_t* context;
+    lwm2m_client_t* client;
+
+    PyObject* py_context;
+    uint16_t client_id;
+
+    if (!PyArg_ParseTuple(args, "OH", &py_context, &client_id)) {
+        return NULL;
+    }
+
+    if ((context = PyCapsule_GetPointer(py_context, NULL)) == NULL) {
+        return NULL;
+    }
+
+    client = LWM2M_FIND_CLIENT(context->lwm2mH->clientList, client_id);
+    if (client == NULL) {
+        return PyErr_Format(PyExc_ValueError, "Unknown client_id");
+    }
+
+    PyObject* item = NULL;
+
+    PyObject* result = PyDict_New();
+    if (result == NULL) {
+        return NULL;
+    }
+
+    /* Add the name of the client to the result dict. */
+    if ((item = PyString_FromString(client->name)) == NULL) {
+        goto Fail;
+    }
+
+    if (PyDict_SetItemString(result, "name", item) == -1) {
+        goto Fail;
+    }
+
+    /* Get the objects and add them to the result. */
+    if ((item = pylwm2m_get_client_info_objects(client)) == NULL) {
+        goto Fail;
+    }
+
+    if (PyDict_SetItemString(result, "objects", item) == -1) {
+        goto Fail;
+    }
+
+    /* Add the current session handle to the result dict. */
+    item = (PyObject*) client->sessionH;
+    if (item != NULL) {
+        if (PyDict_SetItemString(result, "session", item) == -1) {
+            goto Fail;
+        }
+    }
+
+    /* Add the flag if json is supported or not. */
+    if ((item = PyBool_FromLong(client->supportJSON)) == NULL) {
+        goto Fail;
+    }
+
+    if (PyDict_SetItemString(result, "json_support", item) == -1) {
+        goto Fail;
+    }
+
+    /* Add the current lifetime. */
+    if ((item = PyLong_FromUnsignedLong(client->lifetime)) == NULL) {
+        goto Fail;
+    }
+
+    if (PyDict_SetItemString(result, "lifetime", item) == -1) {
+        goto Fail;
+    }
+
+    return result;
+
+Fail:
+    Py_XDECREF(result);
+    Py_XDECREF(item);
+    return NULL;
+}
+
 
 PyObject * pylwm2m_dm_read(PyObject *self, PyObject *args) {
 TRACE("%s %p %p\n",__FUNCTION__, self, args);
