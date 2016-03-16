@@ -81,9 +81,9 @@ result_ptr_needs_free(int result) {
 
 /* Note:
  * Keep in mind that this function is also referenced in pylwm2m_observe.
- * pylwm2m_observe relies on 'result_cb' *NOT* free pylwm2m_result_t
+ * pylwm2m_observe relies on 'call_result_cb' *NOT* free pylwm2m_result_t
  */
-void result_cb(uint16_t clientID, lwm2m_uri_t * uriP, int status, lwm2m_media_type_t format, uint8_t * data, int dataLength, void * userData) {
+void call_result_cb(uint16_t clientID, lwm2m_uri_t * uriP, int status, lwm2m_media_type_t format, uint8_t * data, int dataLength, void * userData) {
 TRACE("%s %hu %p %d %d %p %d %p\n",__FUNCTION__, clientID, uriP, status, format, data, dataLength, userData);	
 	pylwm2m_result_t * lwm2mresultP = (pylwm2m_result_t *) userData;
 	PyObject *pyresult = NULL;
@@ -105,7 +105,7 @@ TRACE("%s pyresult: %p\n",__FUNCTION__,pyresult);
 void result_cb_wrapper(uint16_t clientID, lwm2m_uri_t * uriP, int status, lwm2m_media_type_t format, uint8_t * data, int dataLength, void * userData) {
 TRACE("%s %hu %p %d %d %p %d %p\n",__FUNCTION__, clientID, uriP, status, format, data, dataLength, userData);	
 	pylwm2m_result_t * lwm2mresultP = (pylwm2m_result_t *) userData;
-	result_cb(clientID, uriP, status, format, data, dataLength, userData);
+	call_result_cb(clientID, uriP, status, format, data, dataLength, userData);
     destroy_result_ptr(lwm2mresultP);
 }
 
@@ -127,8 +127,8 @@ TRACE("%s %p %p\n",__FUNCTION__, self, args);
 	pylwm2mH->monitoringResult.resultData = resultData;
 	Py_XINCREF(pylwm2mH->monitoringResult.resultCb);
 	Py_XINCREF(pylwm2mH->monitoringResult.resultData);
-TRACE("lwm2m_set_monitoring_callback %p %p %p\n",pylwm2mH->lwm2mH, result_cb, (void *)&(pylwm2mH->monitoringResult));
-	lwm2m_set_monitoring_callback(pylwm2mH->lwm2mH, result_cb, (void *)&(pylwm2mH->monitoringResult));
+TRACE("lwm2m_set_monitoring_callback %p %p %p\n",pylwm2mH->lwm2mH, call_result_cb, (void *)&(pylwm2mH->monitoringResult));
+	lwm2m_set_monitoring_callback(pylwm2mH->lwm2mH, call_result_cb, (void *)&(pylwm2mH->monitoringResult));
 	return Py_None;
 }
 
@@ -571,7 +571,7 @@ PyObject * pylwm2m_observe(PyObject *self, PyObject *args)
         context->lwm2mH,
         client_id,
         &uri,
-        result_cb,
+        call_result_cb,
         result_ptr);
 
     if (result_ptr_needs_free(result)) {
